@@ -1,9 +1,11 @@
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+name: build
+
+on:
+  - workflow_dispatch
+  - push
 
 jobs:
-  container:
+  image:
     runs-on: ubuntu-latest
 
     permissions:
@@ -11,34 +13,22 @@ jobs:
       packages: write
 
     steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/checkout@v4
         with:
           repository: plausible/analytics
 
-      - id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # https://github.com/docker/metadata-action/issues/227
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=sha,prefix=${{ github.head_ref || github.ref_name }}-
-            type=raw,value=${{ github.head_ref || github.ref_name }}
-            type=ref,event=pr
-
-      - uses: docker/setup-buildx-action@v2
-
-      - uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v3
+      - uses: docker/build-push-action@v4
         with:
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ghcr.io/ruslandoga/try-out-of-repo-build:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          context: .
